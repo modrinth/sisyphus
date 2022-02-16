@@ -1,0 +1,29 @@
+name = "modrinth-workers"
+type = "javascript"
+workers_dev = true
+compatibility_date = "2022-02-14"
+
+[vars]
+WORKERS_RS_VERSION = "0.0.9"
+LABRINTH_URL = "https://api.modrinth.com"
+CDN_BACKEND_URL = "https://modrinth-cdn.nyc3.cdn.digitaloceanspaces.com"
+
+[build]
+command = "cargo install -q worker-build && worker-build --release" # required
+
+[build.upload]
+dir = "build/worker"
+format = "modules"
+main = "./shim.mjs"
+
+[[build.upload.rules]]
+globs = ["**/*.wasm"]
+type = "CompiledWasm"
+
+[[kv_namespaces]]
+binding = "MODRINTH_DOWNLOADERS"
+id = "00cf9092f1cb4272bc97b6a8a61d9643"
+preview_id = "5b6b374c3538475db3179e5983df7f5e"
+
+# read more about configuring your Worker via wrangler.toml at:
+# https://developers.cloudflare.com/workers/cli-wrangler/configuration
