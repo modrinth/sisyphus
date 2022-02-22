@@ -1,0 +1,25 @@
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get build cache
+        id: cache-build
+        uses: actions/cache@v2
+        with:
+          path: target/**
+          key: ${{ runner.os }}-build-cache
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Publish app
+        uses: cloudflare/wrangler-action@1.3.0
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          environment: prod

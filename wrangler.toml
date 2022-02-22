@@ -23,9 +23,7 @@ type = "CompiledWasm"
 
 [[kv_namespaces]]
 binding = "MODRINTH_DOWNLOADERS"
-id = "00cf9092f1cb4272bc97b6a8a61d9643"
-preview_id = "5b6b374c3538475db3179e5983df7f5e"
+id = "b836f7164d5d458c808a82f845d6d0bb"
+preview_id = "407d8655c50343ee96a569a2a520f25c"
 
 
-# read more about configuring your Worker via wrangler.toml at:
-# https://developers.cloudflare.com/workers/cli-wrangler/configuration
