@@ -18,8 +18,8 @@
 
 use worker::*;
 
-mod utils;
 mod routes;
+mod utils;
 
 fn log_request(req: &Request) {
     console_log!(
@@ -27,7 +27,7 @@ fn log_request(req: &Request) {
         Date::now().to_string(),
         req.path(),
         req.cf().coordinates().unwrap_or_default(),
-        req.cf().region().unwrap_or("unknown region".into())
+        req.cf().region().unwrap_or_else(|| "unknown region".into())
     );
 }
 
@@ -37,7 +37,10 @@ pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Respo
     utils::set_panic_hook();
 
     Router::new()
-        .get_async("/data/:hash/versions/:version/:file", routes::download::handle_download)
+        .get_async(
+            "/data/:hash/versions/:version/:file",
+            routes::download::handle_download,
+        )
         .run(req, env)
         .await
 }

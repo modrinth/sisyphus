@@ -1,7 +1,7 @@
 use cfg_if::cfg_if;
 
 /// The header used to determine the IP address of incoming requests
-pub const CF_IP_HEADER: &'static str = "CF-Connecting-IP";
+pub const CF_IP_HEADER: &str = "CF-Connecting-IP";
 
 /// The environment variable containing the URL of the backing CDN
 pub const CDN_BACKEND_URL: &str = "CDN_BACKEND_URL";
