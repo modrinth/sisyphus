@@ -26,4 +26,18 @@ binding = "MODRINTH_DOWNLOADERS"
 id = "b836f7164d5d458c808a82f845d6d0bb"
 preview_id = "407d8655c50343ee96a569a2a520f25c"
 
+[env.dev]
+name = "modrinth-workers-staging"
 
+vars = { LABRINTH_URL = "https://staging-api.modrinth.com", CDN_BACKEND_URL = "https://modrinth-cdn-staging.nyc3.cdn.digitaloceanspaces.com", MODRINTH_DOWNLOADERS = "MODRINTH_DEV_DOWNLOADERS" }
+kv_namespaces = [
+    { binding = "MODRINTH_DEV_DOWNLOADERS", id = "407d8655c50343ee96a569a2a520f25c" }
+]
+
+[env.prod]
+name = "modrinth-workers-prod"
+
+vars = { LABRINTH_URL = "https://api.modrinth.com", CDN_BACKEND_URL = "https://modrinth-cdn.nyc3.cdn.digitaloceanspaces.com", MODRINTH_DOWNLOADERS = "MODRINTH_PROD_DOWNLOADERS" }
+kv_namespaces = [
+    { binding = "MODRINTH_PROD_DOWNLOADERS", id = "b836f7164d5d458c808a82f845d6d0bb" }
+]
