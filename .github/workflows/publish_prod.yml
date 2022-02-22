@@ -22,5 +22,4 @@ jobs:
         env:
           CF_EMAIL: ${{ secrets.CF_ACCOUNT_EMAIL }}
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
-        working-directory: some_dir/some_subdir
         run: npm i @cloudflare/wrangler@1.6.0 && npx wrangler publish --env dev
