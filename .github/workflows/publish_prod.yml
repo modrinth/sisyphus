@@ -9,18 +9,9 @@ jobs:
     name: Deploy
     steps:
       - uses: actions/checkout@v2
-      - name: Get build cache
-        id: cache-build
-        uses: actions/cache@v2
-        with:
-          path: target/**
-          key: ${{ runner.os }}-build-cache
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
       - name: Publish
-        env:
-          CF_EMAIL: ${{ secrets.CF_ACCOUNT_EMAIL }}
-          CF_API_KEY: ${{ secrets.CF_API_KEY }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-        run: npm i @cloudflare/wrangler@1.6.0 && npx wrangler publish --env dev
+        uses: alank976/wrangler-action-for-rust@1.0.0
+        with:
+          preCommands: wrangler build
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          environment: prod
