@@ -38,8 +38,9 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
 	if downloader_downloads <= MAX_COUNTED_DOWNLOADS {
 	    let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
 	    let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
+	    let url = format!("{labrinth_url}/v2/version/{version}/_count-download", version=get_param(ctx, "version"));
 
-	    Fetch::Request(Request::new_with_init(&labrinth_url, &RequestInit {
+	    Fetch::Request(Request::new_with_init(&url, &RequestInit {
 		headers: {
 		    let mut headers = Headers::new();
 		    headers.set("Modrinth-Admin", &labrinth_secret)?;
