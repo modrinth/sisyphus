@@ -1,4 +1,4 @@
-# Modrinth CloudFlare Workers
+# Sisyphus
 Assorted workers for Modrinth using CloudFlare.
 
 ## Running (dev)
