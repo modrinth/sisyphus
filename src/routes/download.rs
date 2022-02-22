@@ -26,7 +26,7 @@ pub async fn handle_download(req: Request, ctx: RouteContext<()>) -> Result<Resp
 async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
     if let Some(ip) = req.headers().get(CF_IP_HEADER)? {
         console_debug!("[DEBUG]: Attempting to count download from IP {}", ip);
-        let downloaders = ctx.kv(DOWNLOADERS_KV_STORE)?;
+        let downloaders = ctx.kv(&std::env::var(DOWNLOADERS_KV_STORE).expect("No KV store specified for Modrinth downloader storage."))?;
         let downloader_downloads = downloaders
             .get(&ip)
             .bytes()
