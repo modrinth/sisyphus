@@ -26,8 +26,7 @@ pub async fn handle_download(req: Request, ctx: RouteContext<()>) -> Result<Resp
 async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
     if let Some(ip) = req.headers().get(CF_IP_HEADER)? {
         console_debug!("[DEBUG]: Attempting to count download from IP {}", ip);
-        let downloaders = ctx.kv(&std::env::var(DOWNLOADERS_KV_STORE)
-            .expect("No KV store specified for Modrinth downloader storage."))?;
+        let downloaders = ctx.kv(&ctx.var(DOWNLOADERS_KV_STORE)?.to_string())?;
         let downloader_downloads = downloaders
             .get(&ip)
             .bytes()
@@ -48,7 +47,7 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
                 version = get_param(ctx, "version")
             );
 
-            Fetch::Request(Request::new_with_init(
+            futures::future::poll_immediate(Fetch::Request(Request::new_with_init(
                 &url,
                 &RequestInit {
                     headers: {
@@ -60,8 +59,7 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
                     ..Default::default()
                 },
             )?)
-            .send()
-            .await?;
+            .send()).await;
         }
 
         downloader_dl_increment_future.await?;
