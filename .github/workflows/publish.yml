@@ -15,3 +15,6 @@ jobs:
           preCommands: wrangler build
           apiToken: ${{ secrets.CF_API_TOKEN }}
           environment: dev
+          secrets: LABRINTH_ADMIN_SECRET
+        env:
+          LABRINTH_ADMIN_SECRET: ${{ secrets.LABRINTH_ADMIN_SECRET_DEV }}
