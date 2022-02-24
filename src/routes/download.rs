@@ -74,6 +74,7 @@ async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<()> {
             let mut headers = Headers::new();
             headers.set("Modrinth-Admin", &labrinth_secret).ok();
 	    headers.set("Access-Control-Allow-Origin", "*").ok();
+	    headers.set("Access-Control-Allow-Methods", "GET").ok();
 	    
             headers
         };
