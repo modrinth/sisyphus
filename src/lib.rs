@@ -38,10 +38,10 @@ pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Respo
 
     Router::new()
         .get_async(
-            "/projects/:hash/versions/:version/:file",
+            "/data/:hash/versions/:version/:file",
             routes::download::handle_version_download,
         )
-        .get("/data/*file", routes::download::handle_download)
+	.or_else_any_method("/data/*file", routes::download::handle_download)
         .run(req, env)
         .await
 }

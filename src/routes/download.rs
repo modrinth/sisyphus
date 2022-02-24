@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 }
 
 /// Route handler for download counting, redirecting, and caching
-/// URL: /projects/<hash>/versions/<version>/<file>
+/// URL: /data/<hash>/versions/<version>/<file>
 pub async fn handle_version_download(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     count_download(&req, &ctx).await.ok();
     get_version(&ctx)
