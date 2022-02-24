@@ -16,8 +16,8 @@ lazy_static::lazy_static! {
 
     /// CORS policy
     pub static ref CORS_POLICY: Cors = Cors::new()
-	.with_origins(std::iter::once("*"))
-	.with_methods(std::iter::once(Method::Get));
+	.with_origins(["*"])
+	.with_methods([Method::Get, Method::Options]);
 }
 
 /// Route handler for download counting, redirecting, and caching
@@ -41,17 +41,20 @@ pub fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Response>
 /// Tries to count a download, provided the IP address is discernable and the limit hasn't already been reachedy
 async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
     if let Some(ip) = req.headers().get(CF_IP_HEADER)? {
-        console_debug!("[DEBUG]: Attempting to count download from IP {}", ip);
-        let downloaders = ctx.kv(&ctx.var(DOWNLOADERS_KV_STORE)?.to_string())?;
+	let project = get_param(&ctx, "hash");
+        console_debug!("[DEBUG]: Attempting to count download from IP {} in project", ip);
+	let download_ctx = format!("{project}-{ip}");
+	
+        let downloaders = ctx.kv(&ctx.var(DOWNLOADERS_KV_STORE)?.to_string())?;	
         let downloader_downloads = downloaders
-            .get(&ip)
+            .get(&download_ctx)
             .bytes()
             .await?
             .map(|it| u32::from_le_bytes(it[0..4].try_into().unwrap()))
             .unwrap_or(0);
 
         downloaders
-            .put_bytes(&ip, &u32::to_le_bytes(downloader_downloads + 1))?
+            .put_bytes(&download_ctx, &u32::to_le_bytes(downloader_downloads + 1))?
             .expiration_ttl(EXPIRATION_TIME.num_seconds() as u64)
             .execute()
             .await?;
@@ -73,33 +76,33 @@ async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<()> {
         version = get_param(ctx, "version"),
     );
 
-    wasm_bindgen_futures::spawn_local(async move {
-        let (labrinth_secret, url) = (labrinth_secret, url);
+    let res = async {
+	let headers = {
+	    let mut h = Headers::new();
+	    h.set("Modrinth-Admin", &labrinth_secret)?;
+	    CORS_POLICY.apply_headers(&mut h)?;
 
-        let headers = {
-            let mut headers = Headers::new();
-            headers.set("Modrinth-Admin", &labrinth_secret).ok();
-	    CORS_POLICY.apply_headers(&mut headers).ok();
-	    
-            headers
-        };
-        let init = RequestInit {
-            headers,
-            method: Method::Patch,
-            ..Default::default()
-        };
+	    h
+	};
+	let init = RequestInit {
+	    headers, method: Method::Patch,
+	    ..Default::default()
+	};
+	Fetch::Request(Request::new_with_init(&url, &init)?)
+	    .send()
+	    .await?;
 
-        Fetch::Request(Request::new_with_init(&url, &init).expect("Error with fetch URL"))
-            .send()
-            .await
-            .ok();
-    });
+	Ok(()) as Result<()>
+    };
+    if let Err(error) = res.await {
+	console_error!("Error incrementing download counter: {error}");
+    }
 
     Ok(())
 }
 
 const URL_PARAM_ERROR: &str =
-    "Tried to get nonexistent file, the router should not have matched this route!";
+    "Tried to get nonexistent parameter, the router should not have matched this route!";
 fn get_param<'a, T>(ctx: &'a RouteContext<T>, param: &str) -> &'a String {
     ctx.param(param).expect(URL_PARAM_ERROR)
 }
