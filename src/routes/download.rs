@@ -13,6 +13,11 @@ pub const MAX_COUNTED_DOWNLOADS: u32 = 5;
 lazy_static::lazy_static! {
     /// How long downloader download counts should be stored
     pub static ref EXPIRATION_TIME: Duration = Duration::minutes(30);
+
+    /// CORS policy
+    pub static ref CORS_POLICY: Cors = Cors::new()
+	.with_origins(std::iter::once("*"))
+	.with_methods(std::iter::once(Method::Get));
 }
 
 /// Route handler for download counting, redirecting, and caching
@@ -29,7 +34,8 @@ pub fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Response>
     let file = get_param(&ctx, "file");
     let url = make_cdn_url(&cdn, &format!("/{file}"))?;
     console_debug!("[DEBUG]: Redirecting to {url}...");
-    Response::redirect(url)
+    Response::redirect(url)?
+	.with_cors(&CORS_POLICY)
 }
 
 /// Tries to count a download, provided the IP address is discernable and the limit hasn't already been reachedy
@@ -73,8 +79,7 @@ async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<()> {
         let headers = {
             let mut headers = Headers::new();
             headers.set("Modrinth-Admin", &labrinth_secret).ok();
-	    headers.set("Access-Control-Allow-Origin", "*").ok();
-	    headers.set("Access-Control-Allow-Methods", "GET").ok();
+	    CORS_POLICY.apply_headers(&mut headers).ok();
 	    
             headers
         };
@@ -121,5 +126,6 @@ fn get_version(ctx: &RouteContext<()>) -> Result<Response> {
 
     let url = make_cdn_url(&cdn, &make_version_download_path(hash, version, file))?;
     console_debug!("[DEBUG]: Redirecting to {url}...");
-    Response::redirect(url)
+    Response::redirect(url)?
+	.with_cors(&CORS_POLICY)
 }
