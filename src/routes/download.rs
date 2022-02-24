@@ -62,8 +62,9 @@ async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<()> {
     let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
     let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
     let url = format!(
-        "{labrinth_url}/v2/version/{version}/_count-download",
-        version = get_param(ctx, "version")
+        "{url}/v2/version/{version}/_count-download",
+	url = labrinth_url.trim_end_matches('/'),
+        version = get_param(ctx, "version"),
     );
 
     wasm_bindgen_futures::spawn_local(async move {
