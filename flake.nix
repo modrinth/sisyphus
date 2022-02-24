@@ -17,6 +17,7 @@
       toolchain = with fenix.packages.${system}; combine [
         minimal.cargo
         minimal.rustc
+        minimal.clippy
         targets.wasm32-unknown-unknown.latest.rust-std
       ];
     in {

@@ -17,9 +17,19 @@ lazy_static::lazy_static! {
 
 /// Route handler for download counting, redirecting, and caching
 /// URL: /data/<hash>/versions/<version>/<file>
-pub async fn handle_download(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn handle_version_download(req: Request, ctx: RouteContext<()>) -> Result<Response> {
     count_download(&req, &ctx).await.ok();
-    get_file(&ctx)
+    get_version(&ctx)
+}
+
+/// Redirect all others to CDN
+/// URL: /data/...
+pub fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+    let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
+    let file = get_param(&ctx, "file");
+    let url = make_cdn_url(&cdn, &format!("/data/{file}"))?;
+    console_debug!("[DEBUG]: Redirecting to {url}...");
+    Response::redirect(url)
 }
 
 /// Tries to count a download, provided the IP address is discernable and the limit hasn't already been reachedy
@@ -34,36 +44,49 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             .map(|it| u32::from_le_bytes(it[0..4].try_into().unwrap()))
             .unwrap_or(0);
 
-        let downloader_dl_increment_future = downloaders
+        downloaders
             .put_bytes(&ip, &u32::to_le_bytes(downloader_downloads + 1))?
             .expiration_ttl(EXPIRATION_TIME.num_seconds() as u64)
-            .execute();
+            .execute()
+            .await?;
 
         if downloader_downloads <= MAX_COUNTED_DOWNLOADS {
-            let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
-            let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
-            let url = format!(
-                "{labrinth_url}/v2/version/{version}/_count-download",
-                version = get_param(ctx, "version")
-            );
-
-            futures::future::poll_immediate(Fetch::Request(Request::new_with_init(
-                &url,
-                &RequestInit {
-                    headers: {
-                        let mut headers = Headers::new();
-                        headers.set("Modrinth-Admin", &labrinth_secret)?;
-
-                        headers
-                    },
-                    ..Default::default()
-                },
-            )?)
-            .send()).await;
+            request_download_count(ctx).await?;
         }
-
-        downloader_dl_increment_future.await?;
     };
+
+    Ok(())
+}
+
+async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<()> {
+    let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
+    let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
+    let url = format!(
+        "{labrinth_url}/v2/version/{version}/_count-download",
+        version = get_param(ctx, "version")
+    );
+
+    wasm_bindgen_futures::spawn_local(async move {
+        let (labrinth_secret, url) = (labrinth_secret, url);
+
+        let headers = {
+            let mut headers = Headers::new();
+            headers.set("Modrinth-Admin", &labrinth_secret).ok();
+	    headers.set("Access-Control-Allow-Origin", "*").ok();
+	    
+            headers
+        };
+        let init = RequestInit {
+            headers,
+            method: Method::Patch,
+            ..Default::default()
+        };
+
+        Fetch::Request(Request::new_with_init(&url, &init).expect("Error with fetch URL"))
+            .send()
+            .await
+            .ok();
+    });
 
     Ok(())
 }
@@ -75,13 +98,18 @@ fn get_param<'a, T>(ctx: &'a RouteContext<T>, param: &str) -> &'a String {
 }
 
 /// Small helper to make CDN download URLs from metadata.
-fn make_cdn_download_url(cdn: &str, hash: &str, version: &str, file: &str) -> Result<Url> {
-    let url = format!("{cdn}/data/{hash}/versions/{version}/{file}");
+fn make_cdn_url(cdn: &str, path: &str) -> Result<Url> {
+    let url = format!("{cdn}{path}");
     Url::parse(&url).map_err(Error::from)
 }
 
+/// Small helper to make CDN download URLs from metadata.
+fn make_version_download_path(hash: &str, version: &str, file: &str) -> String {
+    format!("/data/{hash}/versions/{version}/{file}")
+}
+
 /// Tries to get a file from the CDN
-fn get_file(ctx: &RouteContext<()>) -> Result<Response> {
+fn get_version(ctx: &RouteContext<()>) -> Result<Response> {
     let (hash, version, file) = (
         get_param(ctx, "hash"),
         get_param(ctx, "version"),
@@ -89,7 +117,7 @@ fn get_file(ctx: &RouteContext<()>) -> Result<Response> {
     );
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
 
-    let url = make_cdn_download_url(&cdn, hash, version, file)?;
+    let url = make_cdn_url(&cdn, &make_version_download_path(hash, version, file))?;
     console_debug!("[DEBUG]: Redirecting to {url}...");
     Response::redirect(url)
 }

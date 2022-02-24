@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Danielle Hutzley <endergeryt@gmail.com>"]
 description = "CloudFlare workers for Modrinth"
 license = "AGPL-3.0-or-later"
+repository = "https://github.com/modrinth/sisyphus"
 edition = "2021"
 
 [lib]
