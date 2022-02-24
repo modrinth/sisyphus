@@ -22,12 +22,12 @@ pub async fn handle_version_download(req: Request, ctx: RouteContext<()>) -> Res
     get_version(&ctx)
 }
 
-/// Redirect all data to the CDN
-/// URL: /data/...
+/// Redirect all other requests to the backend
+/// URL: /...
 pub fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
     let file = get_param(&ctx, "file");
-    let url = make_cdn_url(&cdn, &format!("/data/{file}"))?;
+    let url = make_cdn_url(&cdn, &format!("/{file}"))?;
     console_debug!("[DEBUG]: Redirecting to {url}...");
     Response::redirect(url)
 }
