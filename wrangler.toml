@@ -41,3 +41,9 @@ vars = { LABRINTH_URL = "https://api.modrinth.com", CDN_BACKEND_URL = "https://m
 kv_namespaces = [
     { binding = "MODRINTH_PROD_DOWNLOADERS", id = "b836f7164d5d458c808a82f845d6d0bb" }
 ]
+
+[miniflare]
+watch = true
+live_reload = true
+kv_persist = true
+

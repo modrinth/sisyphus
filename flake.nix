@@ -25,10 +25,13 @@
         shellHook = ''
           export PATH+=:~/.cargo/bin
           export LD_LIBRARY_PATH="${pkgs.stdenv.cc.cc.lib}/lib64:${pkgs.zlib}/lib:$LD_LIBRARY_PATH"
+          alias nix-miniflare="npx miniflare"
         '';
         buildInputs = with pkgs; [
           wasm-pack wrangler toolchain
           git
+          # needed for miniflare
+          nodejs-17_x
         ];
       };
     });
