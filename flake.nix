@@ -13,7 +13,7 @@
   outputs = { self, nixpkgs, utils, fenix }:
     utils.lib.eachDefaultSystem (system: let
       pkgs = import nixpkgs { inherit system; };
-      
+
       toolchain = with fenix.packages.${system}; combine [
         minimal.cargo
         minimal.rustc

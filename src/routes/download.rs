@@ -22,22 +22,29 @@ lazy_static::lazy_static! {
 
 /// Route handler for download counting, redirecting, and caching
 /// URL: /data/<hash>/versions/<version>/<file>
-pub async fn handle_version_download(req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub async fn handle_version_download(
+    req: Request,
+    ctx: RouteContext<()>,
+) -> Result<Response> {
     if let Err(error) = count_download(&req, &ctx).await {
-        console_error!("Error encountered while trying to count download: {error}");
+        console_error!(
+            "Error encountered while trying to count download: {error}"
+        );
     }
     get_version(&ctx)
 }
 
 /// Redirect all other requests to the backend
 /// URL: /...
-pub fn handle_download(_req: Request, ctx: RouteContext<()>) -> Result<Response> {
+pub fn handle_download(
+    _req: Request,
+    ctx: RouteContext<()>,
+) -> Result<Response> {
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
     let file = get_param(&ctx, "file");
     let url = make_cdn_url(&cdn, &file)?;
     console_debug!("[DEBUG]: Falling back to CDN for {url}...");
-    Response::redirect(url)?
-        .with_cors(&CORS_POLICY)
+    Response::redirect(url)?.with_cors(&CORS_POLICY)
 }
 
 /// Tries to count a download, provided the IP address is discernable and the limit hasn't already been reachedy
@@ -52,14 +59,17 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             &format!("No downloader KV store is set, this should be in the {DOWNLOADERS_KV_STORE} environemnt variable!")
         );
         let downloader_downloads = downloaders
-            .get(&download_ctx)            
+            .get(&download_ctx)
             .bytes()
             .await?
             .map(|it| u32::from_le_bytes(it[0..4].try_into().unwrap()))
-        .unwrap_or(0);
+            .unwrap_or(0);
 
         downloaders
-            .put_bytes(&download_ctx, &u32::to_le_bytes(downloader_downloads + 1))?
+            .put_bytes(
+                &download_ctx,
+                &u32::to_le_bytes(downloader_downloads + 1),
+            )?
             .expiration_ttl(EXPIRATION_TIME.num_seconds() as u64)
             .execute()
             .await?;
@@ -90,7 +100,8 @@ async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<()> {
             h
         };
         let init = RequestInit {
-            headers, method: Method::Patch,
+            headers,
+            method: Method::Patch,
             ..Default::default()
         };
         Fetch::Request(Request::new_with_init(&url, &init)?)
@@ -132,8 +143,8 @@ fn get_version(ctx: &RouteContext<()>) -> Result<Response> {
     );
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
 
-    let url = make_cdn_url(&cdn, &make_version_download_path(hash, version, file))?;
+    let url =
+        make_cdn_url(&cdn, &make_version_download_path(hash, version, file))?;
     console_debug!("[DEBUG]: Downloading version from {url}...");
-    Response::redirect(url)?
-        .with_cors(&CORS_POLICY)
+    Response::redirect(url)?.with_cors(&CORS_POLICY)
 }

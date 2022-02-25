@@ -32,7 +32,11 @@ fn log_request(req: &Request) {
 }
 
 #[event(fetch)]
-pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Response> {
+pub async fn main(
+    req: Request,
+    env: Env,
+    _ctx: worker::Context,
+) -> Result<Response> {
     log_request(&req);
     utils::set_panic_hook();
 
@@ -41,7 +45,7 @@ pub async fn main(req: Request, env: Env, _ctx: worker::Context) -> Result<Respo
             "/data/:hash/versions/:version/:file",
             routes::download::handle_version_download,
         )
-	.or_else_any_method("/*file", routes::download::handle_download)
+        .or_else_any_method("/*file", routes::download::handle_download)
         .run(req, env)
         .await
 }
