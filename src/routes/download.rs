@@ -77,30 +77,53 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             .await?;
 
         if downloader_downloads <= MAX_COUNTED_DOWNLOADS {
-            let mut response = request_download_count(ctx).await?;
-            if !http::StatusCode::from_u16(response.status_code())
-                .unwrap()
-                .is_success()
-            {
-                console_error!(
-                    "[ERROR] Error counting download: {}",
-                    response.text().await.unwrap()
+            let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
+            let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
+            let hash = get_param(ctx, "hash").to_owned();
+            let version_name = get_param(ctx, "version").to_owned();
+
+            wasm_bindgen_futures::spawn_local(async move {
+                match request_download_count(
+                    &labrinth_url,
+                    &labrinth_secret,
+                    &hash,
+                    &version_name,
                 )
-            }
+                .await
+                {
+                    Ok(mut response)
+                        if !http::StatusCode::from_u16(
+                            response.status_code(),
+                        )
+                        .unwrap()
+                        .is_success() =>
+                    {
+                        console_warn!(
+                            "[WARN] Non-success response when counting download: {}",
+                            response.text().await.unwrap()
+                        )
+                    }
+                    Err(error) => console_error!(
+                        "[ERROR] Error counting download: {error}"
+                    ),
+                    _ => (),
+                }
+            });
         }
     };
 
     Ok(())
 }
 
-async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<Response> {
-    let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
-    let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
+async fn request_download_count(
+    labrinth_url: &str,
+    labrinth_secret: &str,
+    hash: &str,
+    version_name: &str,
+) -> Result<Response> {
     let url = format!(
-        "{url}/v2/version/{project}/{version_name}/_count-download",
+        "{url}/v2/version/{hash}/{version_name}/_count-download",
         url = labrinth_url.trim_end_matches('/'),
-        project = get_param(ctx, "hash"),
-        version_name = get_param(ctx, "version"),
     );
     console_debug!("[DEBUG]: Counting via url: {url}");
 
