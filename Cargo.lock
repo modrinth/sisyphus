@@ -296,6 +296,7 @@ dependencies = [
  "chrono",
  "console_error_panic_hook",
  "futures",
+ "http",
  "lazy_static",
  "worker",
 ]

@@ -28,8 +28,9 @@ pub async fn handle_version_download(
 ) -> Result<Response> {
     if let Err(error) = count_download(&req, &ctx).await {
         console_error!(
-            "Error encountered while trying to count download: {error}"
+            "Error encountered while trying to count download: {error}",
         );
+        console_debug!("Full object: {error:?}");
     }
     get_version(&ctx)
 }
@@ -64,6 +65,7 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             .await?
             .map(|it| u32::from_le_bytes(it[0..4].try_into().unwrap()))
             .unwrap_or(0);
+        console_debug!("[DEBUG]: Number of downloads: {downloader_downloads}");
 
         downloaders
             .put_bytes(
@@ -75,46 +77,48 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             .await?;
 
         if downloader_downloads <= MAX_COUNTED_DOWNLOADS {
-            request_download_count(ctx).await?;
+            let mut response = request_download_count(ctx).await?;
+            if !http::StatusCode::from_u16(response.status_code())
+                .unwrap()
+                .is_success()
+            {
+                console_error!(
+                    "[ERROR] Error counting download: {}",
+                    response.text().await.unwrap()
+                )
+            }
         }
     };
 
     Ok(())
 }
 
-async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<()> {
+async fn request_download_count<T>(ctx: &RouteContext<T>) -> Result<Response> {
     let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
     let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
     let url = format!(
-        "{url}/v2/version/{version}/_count-download",
+        "{url}/v2/version/{project}/{version_name}/_count-download",
         url = labrinth_url.trim_end_matches('/'),
-        version = get_param(ctx, "version"),
+        project = get_param(ctx, "hash"),
+        version_name = get_param(ctx, "version"),
     );
+    console_debug!("[DEBUG]: Counting via url: {url}");
 
-    let res = async {
-        let headers = {
-            let mut h = Headers::new();
-            h.set("Modrinth-Admin", &labrinth_secret)?;
-            CORS_POLICY.apply_headers(&mut h)?;
+    let headers = {
+        let mut h = Headers::new();
+        h.set("Modrinth-Admin", &labrinth_secret)?;
+        CORS_POLICY.apply_headers(&mut h)?;
 
-            h
-        };
-        let init = RequestInit {
-            headers,
-            method: Method::Patch,
-            ..Default::default()
-        };
-        Fetch::Request(Request::new_with_init(&url, &init)?)
-            .send()
-            .await?;
-
-        Ok(()) as Result<()>
+        h
     };
-    if let Err(error) = res.await {
-        console_error!("Error incrementing download counter: {error}");
-    }
-
-    Ok(())
+    let init = RequestInit {
+        headers,
+        method: Method::Patch,
+        ..Default::default()
+    };
+    Fetch::Request(Request::new_with_init(&url, &init)?)
+        .send()
+        .await
 }
 
 const URL_PARAM_ERROR: &str =

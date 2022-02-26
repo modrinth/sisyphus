@@ -45,5 +45,5 @@ kv_namespaces = [
 [miniflare]
 watch = true
 live_reload = true
-kv_persist = true
-
+kv_persist = false
+env_path = ".miniflare.env"
