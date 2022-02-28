@@ -13,11 +13,6 @@ pub const MAX_COUNTED_DOWNLOADS: u32 = 5;
 lazy_static::lazy_static! {
     /// How long downloader download counts should be stored
     pub static ref EXPIRATION_TIME: Duration = Duration::minutes(30);
-
-    /// CORS policy
-    pub static ref CORS_POLICY: Cors = Cors::new()
-        .with_origins(["*"])
-        .with_methods([Method::Get, Method::Options]);
 }
 
 /// Route handler for download counting, redirecting, and caching

@@ -45,6 +45,9 @@ pub async fn main(
             "/data/:hash/versions/:version/:file",
             routes::download::handle_version_download,
         )
+        .options("/*route", |_req, _ctx| {
+            Response::ok("")?.with_cors(&utils::CORS_POLICY)
+        })
         .or_else_any_method("/*file", routes::download::handle_download)
         .run(req, env)
         .await
