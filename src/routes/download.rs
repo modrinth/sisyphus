@@ -68,6 +68,15 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             .map(|it| u32::from_le_bytes(it[0..4].try_into().unwrap()))
             .unwrap_or(0);
         console_debug!("[DEBUG]: Number of downloads: {downloader_downloads}");
+        if downloader_downloads == u32::MAX {
+            console_warn!("[WARN]: This user is likely a bot, their download count has hit the 32 bit integer limit. Either that or I somehow introduced an integer underflow.");
+            downloaders
+                .put_bytes(&download_ctx, &[0xFF, 4])?
+                .expiration_ttl(EXPIRATION_TIME.num_seconds() as u64)
+                .execute()
+                .await?;
+            return Ok(());
+        }
 
         downloaders
             .put_bytes(
@@ -78,35 +87,41 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             .execute()
             .await?;
 
-        if downloader_downloads <= MAX_COUNTED_DOWNLOADS {
+        if downloader_downloads < MAX_COUNTED_DOWNLOADS {
             let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
             let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
             let hash = get_param(ctx, "hash").to_owned();
             let version_name = get_param(ctx, "version").to_owned();
 
-            match request_download_count(
-                &labrinth_url,
-                &labrinth_secret,
-                &hash,
-                &version_name,
-            )
-            .await
-            {
-                Ok(mut response)
-                    if !http::StatusCode::from_u16(response.status_code())
+            wasm_bindgen_futures::spawn_local(async move {
+                match request_download_count(
+                    &labrinth_url,
+                    &labrinth_secret,
+                    &hash,
+                    &version_name,
+                )
+                .await
+                {
+                    Ok(mut response)
+                        if !http::StatusCode::from_u16(
+                            response.status_code(),
+                        )
                         .unwrap()
                         .is_success() =>
-                {
-                    console_warn!(
-                        "[WARN] Non-success response when counting download: {}",
-                        response.text().await.unwrap()
-                    )
+                    {
+                        console_warn!(
+                            "[WARN] Non-success response when counting download: {}",
+                            response.text().await.unwrap_or(String::from("?"))
+                        )
+                    }
+                    Err(error) => {
+                        console_error!(
+                            "[ERROR] Error counting download: {error}"
+                        )
+                    }
+                    _ => (),
                 }
-                Err(error) => {
-                    console_error!("[ERROR] Error counting download: {error}")
-                }
-                _ => (),
-            }
+            });
         }
     };
 

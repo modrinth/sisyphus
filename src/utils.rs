@@ -17,7 +17,7 @@ lazy_static::lazy_static! {
     /// CORS policy
     pub static ref CORS_POLICY: Cors = Cors::new()
         .with_origins(["*"])
-        .with_methods([Method::Get, Method::Options]);
+        .with_methods([Method::Get, Method::Options, Method::Head]);
 }
 
 cfg_if! {
