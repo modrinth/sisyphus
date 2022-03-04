@@ -48,6 +48,7 @@ pub async fn main(
         .options("/*route", |_req, _ctx| {
             Response::ok("")?.with_cors(&utils::CORS_POLICY)
         })
+        .get("/teapot", routes::teapot::teapot)
         .or_else_any_method("/*file", routes::download::handle_download)
         .run(req, env)
         .await

@@ -1,5 +1,6 @@
 use crate::utils::*;
 use chrono::Duration;
+use std::path::Path;
 use worker::*;
 
 /// KV store used to count downloaders
@@ -46,7 +47,13 @@ pub fn handle_download(
 /// Tries to count a download, provided the IP address is discernable and the limit hasn't already been reachedy
 async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
     if let Some(ip) = req.headers().get(CF_IP_HEADER)? {
-        let project = get_param(&ctx, "hash");
+        let (project, file) =
+            (get_param(&ctx, "hash"), get_param(&ctx, "file"));
+
+        if !is_counted(file) {
+            console_debug!("[DEBUG]: Not counting {file} due to extension");
+            return Ok(());
+        }
         console_debug!("[DEBUG]: Attempting to count download from IP {ip} in project {project}");
         let download_ctx = format!("{project}-{ip}");
 
@@ -77,33 +84,29 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             let hash = get_param(ctx, "hash").to_owned();
             let version_name = get_param(ctx, "version").to_owned();
 
-            wasm_bindgen_futures::spawn_local(async move {
-                match request_download_count(
-                    &labrinth_url,
-                    &labrinth_secret,
-                    &hash,
-                    &version_name,
-                )
-                .await
-                {
-                    Ok(mut response)
-                        if !http::StatusCode::from_u16(
-                            response.status_code(),
-                        )
+            match request_download_count(
+                &labrinth_url,
+                &labrinth_secret,
+                &hash,
+                &version_name,
+            )
+            .await
+            {
+                Ok(mut response)
+                    if !http::StatusCode::from_u16(response.status_code())
                         .unwrap()
                         .is_success() =>
-                    {
-                        console_warn!(
-                            "[WARN] Non-success response when counting download: {}",
-                            response.text().await.unwrap()
-                        )
-                    }
-                    Err(error) => console_error!(
-                        "[ERROR] Error counting download: {error}"
-                    ),
-                    _ => (),
+                {
+                    console_warn!(
+                        "[WARN] Non-success response when counting download: {}",
+                        response.text().await.unwrap()
+                    )
                 }
-            });
+                Err(error) => {
+                    console_error!("[ERROR] Error counting download: {error}")
+                }
+                _ => (),
+            }
         }
     };
 
@@ -169,4 +172,19 @@ fn get_version(ctx: &RouteContext<()>) -> Result<Response> {
         make_cdn_url(&cdn, &make_version_download_path(hash, version, file))?;
     console_debug!("[DEBUG]: Downloading version from {url}...");
     Response::redirect(url)?.with_cors(&CORS_POLICY)
+}
+
+fn is_counted(file: &str) -> bool {
+    if file == "" {
+        return false;
+    }
+    match Path::new(file)
+        .extension()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .as_ref()
+    {
+        "md" | "markdown" => false,
+        _ => true,
+    }
 }
