@@ -157,18 +157,6 @@ async fn request_download_count(
         .await
 }
 
-const URL_PARAM_ERROR: &str =
-    "Tried to get nonexistent parameter, the router should not have matched this route!";
-fn get_param<'a, T>(ctx: &'a RouteContext<T>, param: &str) -> &'a String {
-    ctx.param(param).expect(URL_PARAM_ERROR)
-}
-
-/// Small helper to make CDN download URLs from metadata.
-fn make_cdn_url(cdn: &str, path: &str) -> Result<Url> {
-    let url = format!("{cdn}{path}");
-    Url::parse(&url).map_err(Error::from)
-}
-
 /// Small helper to make CDN download URLs from metadata.
 fn make_version_download_path(hash: &str, version: &str, file: &str) -> String {
     format!("/data/{hash}/versions/{version}/{file}")

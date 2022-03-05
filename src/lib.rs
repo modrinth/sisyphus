@@ -16,6 +16,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+use utils::*;
 use worker::*;
 
 mod routes;
@@ -46,9 +47,18 @@ pub async fn main(
             routes::download::handle_version_download,
         )
         .options("/*route", |_req, _ctx| {
-            Response::ok("")?.with_cors(&utils::CORS_POLICY)
+            Response::ok("")?.with_cors(&CORS_POLICY)
         })
         .get("/teapot", routes::teapot::teapot)
+        .head_async("/*file", |_req, ctx| async move {
+            let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
+            let url = make_cdn_url(&cdn, get_param(&ctx, "file"))?.to_string();
+            let resp =
+                Fetch::Request(Request::new(url.as_str(), Method::Head)?)
+                    .send()
+                    .await?;
+            resp.with_cors(&CORS_POLICY)
+        })
         .or_else_any_method("/*file", routes::download::handle_download)
         .run(req, env)
         .await

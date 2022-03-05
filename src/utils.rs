@@ -20,6 +20,19 @@ lazy_static::lazy_static! {
         .with_methods([Method::Get, Method::Options, Method::Head]);
 }
 
+/// Small helper to make CDN download URLs from metadata.
+pub fn make_cdn_url(cdn: &str, path: &str) -> Result<Url> {
+    let cdn = cdn.trim_end_matches('/');
+    let url = format!("{cdn}/{path}");
+    Url::parse(&url).map_err(Error::from)
+}
+
+const URL_PARAM_ERROR: &str =
+    "Tried to get nonexistent parameter, the router should not have matched this route!";
+pub fn get_param<'a, T>(ctx: &'a RouteContext<T>, param: &str) -> &'a String {
+    ctx.param(param).expect(URL_PARAM_ERROR)
+}
+
 cfg_if! {
     // https://github.com/rustwasm/console_error_panic_hook#readme
     if #[cfg(feature = "console_error_panic_hook")] {
