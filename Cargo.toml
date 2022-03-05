@@ -1,6 +1,6 @@
 [package]
 name = "modrinth-workers-1"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Danielle Hutzley <endergeryt@gmail.com>"]
 description = "CloudFlare workers for Modrinth"
 license = "AGPL-3.0-or-later"
