@@ -1,6 +1,6 @@
 use crate::utils::*;
 use chrono::Duration;
-use std::path::Path;
+use std::{net::IpAddr, path::Path};
 use worker::*;
 
 /// KV store used to count downloaders
@@ -55,6 +55,18 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             return Ok(());
         }
         console_debug!("[DEBUG]: Attempting to count download from IP {ip} in project {project}");
+
+        let ip = u64::from_le_bytes(
+            match ip.parse::<IpAddr>().map_err(|err| err.to_string())? {
+                IpAddr::V4(it) => {
+                    [it.octets(), [0u8; 4]].concat().try_into().unwrap()
+                }
+                IpAddr::V6(it) => it.octets()[..8].try_into().unwrap(),
+            },
+        )
+        .to_string();
+        console_debug!("Ip: {ip}");
+
         let download_ctx = format!("{project}-{ip}");
 
         let store_name = ctx.var(DOWNLOADERS_KV_STORE)?.to_string();
