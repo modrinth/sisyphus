@@ -8,14 +8,6 @@ use worker::*;
 /// Value: [u8;4] = Download count in little endian (for portability, this is specified)
 pub const DOWNLOADERS_KV_STORE: &str = "MODRINTH_DOWNLOADERS";
 
-/// The maximum number of downloads per downloader in order to be counted
-/// Expires after EXPIRATION_TIME
-pub const MAX_COUNTED_DOWNLOADS: u32 = 5;
-lazy_static::lazy_static! {
-    /// How long downloader download counts should be stored
-    pub static ref EXPIRATION_TIME: Duration = Duration::minutes(30);
-}
-
 /// Route handler for download counting, redirecting, and caching
 /// URL: /data/<hash>/versions/<version>/<file>
 pub async fn handle_version_download(
@@ -71,20 +63,35 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
 
         let store_name = ctx.var(DOWNLOADERS_KV_STORE)?.to_string();
         let downloaders = ctx.kv(&store_name).expect(
-            &format!("No downloader KV store is set, this should be in the {DOWNLOADERS_KV_STORE} environemnt variable!")
+            &format!("[FATAL]: No downloader KV store is set, this should be in the {DOWNLOADERS_KV_STORE} environemnt variable!")
         );
+
         let downloader_downloads = downloaders
             .get(&download_ctx)
             .bytes()
             .await?
             .map(|it| u32::from_le_bytes(it[0..4].try_into().unwrap()))
             .unwrap_or(0);
+
+        let expiration_time: u64 = ctx.var(DOWNLOAD_STORAGE_TIME)
+            .map(|it| it.to_string())
+            .map_err(|err| format!("Environment error: {err}"))
+            .and_then(|it| it.parse::<i64>().map_err(|err| format!("Parse error: {err}")))
+            .map(Duration::minutes)
+            .unwrap_or_else(|err| {
+                console_warn!("[WARN]: Could not parse {DOWNLOAD_STORAGE_TIME} as number of minutes: {err}. Using default...");
+                Duration::minutes(6 * 60)
+            })
+            .num_seconds()
+            .try_into()
+            .unwrap();
+
         console_debug!("[DEBUG]: Number of downloads: {downloader_downloads}");
         if downloader_downloads == u32::MAX {
             console_warn!("[WARN]: This user is likely a bot, their download count has hit the 32 bit integer limit. Either that or I somehow introduced an integer underflow.");
             downloaders
                 .put_bytes(&download_ctx, &[0xFF, 4])?
-                .expiration_ttl(EXPIRATION_TIME.num_seconds() as u64)
+                .expiration_ttl(expiration_time)
                 .execute()
                 .await?;
             return Ok(());
@@ -95,11 +102,22 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
                 &download_ctx,
                 &u32::to_le_bytes(downloader_downloads + 1),
             )?
-            .expiration_ttl(EXPIRATION_TIME.num_seconds() as u64)
+            .expiration_ttl(expiration_time)
             .execute()
             .await?;
 
-        if downloader_downloads < MAX_COUNTED_DOWNLOADS {
+        let max_downloads = ctx.var(MAX_COUNTED_DOWNLOADS)
+            .map(|it| it.to_string())
+            .map_err(|err| format!("Environment error: {err}"))
+            .and_then(|it| it
+                      .parse::<i64>()
+                      .map_err(|err| format!("Parse error: {err}")))
+            .unwrap_or_else(|err| {
+                console_warn!("[WARN]: Could not parse {MAX_COUNTED_DOWNLOADS} environment veriable: {err}. Using default...");
+                5
+            });
+
+        if (downloader_downloads as i64) < max_downloads {
             let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
             let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
             let hash = get_param(ctx, "hash").to_owned();

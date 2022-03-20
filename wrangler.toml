@@ -29,7 +29,7 @@ preview_id = "407d8655c50343ee96a569a2a520f25c"
 [env.dev]
 name = "modrinth-workers-staging"
 
-vars = { LABRINTH_URL = "https://staging-api.modrinth.com", CDN_BACKEND_URL = "https://staging-cdn-raw.modrinth.com", MODRINTH_DOWNLOADERS = "MODRINTH_DEV_DOWNLOADERS" }
+vars = { LABRINTH_URL = "https://staging-api.modrinth.com", CDN_BACKEND_URL = "https://staging-cdn-raw.modrinth.com", MODRINTH_DOWNLOADERS = "MODRINTH_DEV_DOWNLOADERS", DOWNLOAD_STORAGE_TIME = 360, DOWNLOAD_STORAGE_LIMIT = 5 }
 kv_namespaces = [
     { binding = "MODRINTH_DEV_DOWNLOADERS", id = "407d8655c50343ee96a569a2a520f25c" }
 ]

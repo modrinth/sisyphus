@@ -13,6 +13,12 @@ pub const LABRINTH_URL: &str = "LABRINTH_URL";
 /// The secret contianing the admin key for Labrinth
 pub const LABRINTH_SECRET: &str = "LABRINTH_ADMIN_SECRET";
 
+/// How long downloader download counts should be stored, in minutes
+pub const DOWNLOAD_STORAGE_TIME: &str = "DOWNLOAD_STORAGE_TIME";
+
+/// The maximum number of downloads per downloader in order to be counted
+pub const MAX_COUNTED_DOWNLOADS: &str = "DOWNLOAD_STORAGE_LIMIT";
+
 lazy_static::lazy_static! {
     /// CORS policy
     pub static ref CORS_POLICY: Cors = Cors::new()
