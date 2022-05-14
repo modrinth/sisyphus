@@ -1,6 +1,8 @@
 use crate::utils::*;
 use chrono::Duration;
+use serde::Serialize;
 use std::{net::IpAddr, path::Path};
+use worker::wasm_bindgen::JsValue;
 use worker::*;
 
 /// KV store used to count downloaders
@@ -14,13 +16,26 @@ pub async fn handle_version_download(
     req: Request,
     ctx: RouteContext<()>,
 ) -> Result<Response> {
-    if let Err(error) = count_download(&req, &ctx).await {
+    let (hash, version, file) = (
+        get_param(&ctx, "hash"),
+        get_param(&ctx, "version"),
+        get_param(&ctx, "file"),
+    );
+    let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
+
+    let url =
+        make_cdn_url(&cdn, &format!("/data/{hash}/versions/{version}/{file}"))?;
+
+    if let Err(error) = count_download(&req, &ctx, &url).await {
         console_error!(
             "Error encountered while trying to count download: {error}",
         );
         console_debug!("Full object: {error:?}");
     }
-    get_version(&ctx)
+
+    console_debug!("[DEBUG]: Downloading version from {url}...");
+
+    Response::redirect(url)?.with_cors(&CORS_POLICY)
 }
 
 /// Redirect all other requests to the backend
@@ -31,16 +46,19 @@ pub fn handle_download(
 ) -> Result<Response> {
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
     let file = get_param(&ctx, "file");
-    let url = make_cdn_url(&cdn, &file)?;
+    let url = make_cdn_url(&cdn, file)?;
     console_debug!("[DEBUG]: Falling back to CDN for {url}...");
     Response::redirect(url)?.with_cors(&CORS_POLICY)
 }
 
 /// Tries to count a download, provided the IP address is discernable and the limit hasn't already been reachedy
-async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
+async fn count_download(
+    req: &Request,
+    ctx: &RouteContext<()>,
+    forward_url: &Url,
+) -> Result<()> {
     if let Some(ip) = req.headers().get(CF_IP_HEADER)? {
-        let (project, file) =
-            (get_param(&ctx, "hash"), get_param(&ctx, "file"));
+        let (project, file) = (get_param(ctx, "hash"), get_param(ctx, "file"));
 
         if !is_counted(file) {
             console_debug!("[DEBUG]: Not counting {file} due to extension");
@@ -62,9 +80,7 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
         let download_ctx = format!("{project}-{ip}");
 
         let store_name = ctx.var(DOWNLOADERS_KV_STORE)?.to_string();
-        let downloaders = ctx.kv(&store_name).expect(
-            &format!("[FATAL]: No downloader KV store is set, this should be in the {DOWNLOADERS_KV_STORE} environemnt variable!")
-        );
+        let downloaders = ctx.kv(&store_name).unwrap_or_else(|_| panic!("[FATAL]: No downloader KV store is set, this should be in the {DOWNLOADERS_KV_STORE} environemnt variable!"));
 
         let downloader_downloads = downloaders
             .get(&download_ctx)
@@ -122,6 +138,7 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
             let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
             let hash = get_param(ctx, "hash").to_owned();
             let version_name = get_param(ctx, "version").to_owned();
+            let forward_url = forward_url.to_string();
 
             wasm_bindgen_futures::spawn_local(async move {
                 match request_download_count(
@@ -129,6 +146,7 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
                     &labrinth_secret,
                     &hash,
                     &version_name,
+                    &forward_url,
                 )
                 .await
                 {
@@ -141,7 +159,7 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
                     {
                         console_warn!(
                             "[WARN] Non-success response when counting download: {}",
-                            response.text().await.unwrap_or(String::from("?"))
+                            response.text().await.unwrap_or_else(|_| String::from("?"))
                         )
                     }
                     Err(error) => {
@@ -158,21 +176,29 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct DownloadRequest {
+    pub url: String,
+    pub hash: String,
+    pub version_name: String,
+}
+
 async fn request_download_count(
     labrinth_url: &str,
     labrinth_secret: &str,
     hash: &str,
     version_name: &str,
+    req_url: &str,
 ) -> Result<Response> {
     let url = format!(
-        "{url}/v2/version/{hash}/{version_name}/_count-download",
+        "{url}/v2/admin/_count-download",
         url = labrinth_url.trim_end_matches('/'),
     );
     console_debug!("[DEBUG]: Counting via url: {url}");
 
     let headers = {
         let mut h = Headers::new();
-        h.set("Modrinth-Admin", &labrinth_secret)?;
+        h.set("Modrinth-Admin", labrinth_secret)?;
         CORS_POLICY.apply_headers(&mut h)?;
 
         h
@@ -180,6 +206,14 @@ async fn request_download_count(
     let init = RequestInit {
         headers,
         method: Method::Patch,
+        body: Some(
+            JsValue::from_serde(&DownloadRequest {
+                url: req_url.to_string(),
+                hash: hash.to_string(),
+                version_name: version_name.to_string(),
+            })
+            .unwrap(),
+        ),
         ..Default::default()
     };
     Fetch::Request(Request::new_with_init(&url, &init)?)
@@ -187,37 +221,17 @@ async fn request_download_count(
         .await
 }
 
-/// Small helper to make CDN download URLs from metadata.
-fn make_version_download_path(hash: &str, version: &str, file: &str) -> String {
-    format!("/data/{hash}/versions/{version}/{file}")
-}
-
-/// Tries to get a file from the CDN
-fn get_version(ctx: &RouteContext<()>) -> Result<Response> {
-    let (hash, version, file) = (
-        get_param(ctx, "hash"),
-        get_param(ctx, "version"),
-        get_param(ctx, "file"),
-    );
-    let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
-
-    let url =
-        make_cdn_url(&cdn, &make_version_download_path(hash, version, file))?;
-    console_debug!("[DEBUG]: Downloading version from {url}...");
-    Response::redirect(url)?.with_cors(&CORS_POLICY)
-}
-
 fn is_counted(file: &str) -> bool {
-    if file == "" {
+    if file.is_empty() {
         return false;
     }
-    match Path::new(file)
-        .extension()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .as_ref()
-    {
-        "md" | "markdown" => false,
-        _ => true,
-    }
+
+    !matches!(
+        Path::new(file)
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .as_ref(),
+        "md" | "markdown"
+    )
 }

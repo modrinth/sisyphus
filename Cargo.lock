@@ -298,6 +298,8 @@ dependencies = [
  "futures",
  "http",
  "lazy_static",
+ "serde",
+ "serde_json",
  "worker",
 ]
 
