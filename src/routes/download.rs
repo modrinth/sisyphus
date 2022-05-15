@@ -199,6 +199,7 @@ async fn request_download_count(
     let headers = {
         let mut h = Headers::new();
         h.set("Modrinth-Admin", labrinth_secret)?;
+        h.set("Content-Type", "application/json")?;
         CORS_POLICY.apply_headers(&mut h)?;
 
         h
