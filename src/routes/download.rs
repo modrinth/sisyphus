@@ -24,7 +24,7 @@ pub async fn handle_version_download(
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
 
     let url =
-        make_cdn_url(&cdn, &format!("/data/{hash}/versions/{version}/{file}"))?;
+        make_cdn_url(&cdn, &format!("data/{hash}/versions/{version}/{file}"))?;
 
     if let Err(error) = count_download(&req, &ctx, &url).await {
         console_error!(
@@ -80,7 +80,7 @@ async fn count_download(
         let download_ctx = format!("{project}-{ip}");
 
         let store_name = ctx.var(DOWNLOADERS_KV_STORE)?.to_string();
-        let downloaders = ctx.kv(&store_name).unwrap_or_else(|_| panic!("[FATAL]: No downloader KV store is set, this should be in the {DOWNLOADERS_KV_STORE} environemnt variable!"));
+        let downloaders = ctx.kv(&store_name).unwrap_or_else(|_| panic!("[FATAL]: No downloader KV store is set, this should be in the {DOWNLOADERS_KV_STORE} environment variable!"));
 
         let downloader_downloads = downloaders
             .get(&download_ctx)
@@ -204,17 +204,17 @@ async fn request_download_count(
 
         h
     };
+
     let init = RequestInit {
         headers,
         method: Method::Patch,
-        body: Some(
-            JsValue::from_serde(&DownloadRequest {
+        body: Some(JsValue::from_str(&serde_json::to_string(
+            &DownloadRequest {
                 url: req_url.to_string(),
                 hash: hash.to_string(),
                 version_name: version_name.to_string(),
-            })
-            .unwrap(),
-        ),
+            },
+        )?)),
         ..Default::default()
     };
     Fetch::Request(Request::new_with_init(&url, &init)?)
