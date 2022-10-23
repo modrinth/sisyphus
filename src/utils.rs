@@ -29,6 +29,7 @@ lazy_static::lazy_static! {
 /// Small helper to make CDN download URLs from metadata.
 pub fn make_cdn_url(cdn: &str, path: &str) -> Result<Url> {
     let cdn = cdn.trim_end_matches('/');
+    let path = path.trim_end_matches('/');
     let url = format!("{cdn}/{path}");
     Url::parse(&url).map_err(Error::from)
 }
