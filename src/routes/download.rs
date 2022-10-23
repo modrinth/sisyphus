@@ -18,8 +18,8 @@ pub async fn handle_version_download(
 ) -> Result<Response> {
     let (hash, version, file) = (
         get_param(&ctx, "hash"),
-        get_param(&ctx, "version").replace('+', "%2B"),
-        get_param(&ctx, "file").replace('+', "%2B"),
+        get_param(&ctx, "version"),
+        get_param(&ctx, "file"),
     );
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
 
