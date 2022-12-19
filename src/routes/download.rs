@@ -26,7 +26,7 @@ pub async fn handle_version_download(
     let url =
         make_cdn_url(&cdn, &format!("data/{hash}/versions/{version}/{file}"))?;
 
-    if let Err(error) = count_download(&req, &ctx, &url).await {
+    if let Err(error) = count_download(&req, &ctx).await {
         console_error!(
             "Error encountered while trying to count download: {error}",
         );
@@ -55,7 +55,6 @@ pub fn handle_download(
 async fn count_download(
     req: &Request,
     ctx: &RouteContext<()>,
-    forward_url: &Url,
 ) -> Result<()> {
     if let Some(ip) = req.headers().get(CF_IP_HEADER)? {
         let (project, file) = (get_param(ctx, "hash"), get_param(ctx, "file"));
@@ -138,6 +137,7 @@ async fn count_download(
             let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
             let hash = get_param(ctx, "hash").to_owned();
             let version_name = get_param(ctx, "version").to_owned();
+            let og_url = req.url()?.to_string();
 
             wasm_bindgen_futures::spawn_local(async move {
                 match request_download_count(
@@ -145,7 +145,7 @@ async fn count_download(
                     &labrinth_secret,
                     &hash,
                     &version_name,
-                    req.url()?.to_string(),
+                    og_url,
                 )
                 .await
                 {
