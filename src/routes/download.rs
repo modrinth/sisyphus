@@ -23,8 +23,6 @@ pub async fn handle_version_download(
     );
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
 
-    console_debug!("{}", req.url().unwrap());
-
     let url =
         make_cdn_url(&cdn, &format!("data/{hash}/versions/{version}/{file}"))?;
 
