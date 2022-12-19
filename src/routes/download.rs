@@ -23,6 +23,8 @@ pub async fn handle_version_download(
     );
     let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
 
+    console_debug!("{}", req.url().unwrap());
+
     let url =
         make_cdn_url(&cdn, &format!("data/{hash}/versions/{version}/{file}"))?;
 
@@ -138,7 +140,6 @@ async fn count_download(
             let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
             let hash = get_param(ctx, "hash").to_owned();
             let version_name = get_param(ctx, "version").to_owned();
-            let forward_url = forward_url.to_string();
 
             wasm_bindgen_futures::spawn_local(async move {
                 match request_download_count(
@@ -146,7 +147,7 @@ async fn count_download(
                     &labrinth_secret,
                     &hash,
                     &version_name,
-                    &forward_url,
+                    req.url()?.to_string(),
                 )
                 .await
                 {
@@ -188,7 +189,7 @@ async fn request_download_count(
     labrinth_secret: &str,
     hash: &str,
     version_name: &str,
-    req_url: &str,
+    req_url: String,
 ) -> Result<Response> {
     let url = format!(
         "{url}/v2/admin/_count-download",
