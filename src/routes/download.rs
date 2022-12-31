@@ -135,6 +135,7 @@ async fn count_download(
         if (downloader_downloads as i64) < max_downloads {
             let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
             let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
+            let rate_limit_key_secret = ctx.secret(RATE_LIMIT_IGNORE_KEY)?.to_string();
             let hash = get_param(ctx, "hash").to_owned();
             let version_name = get_param(ctx, "version").to_owned();
             let og_url = req.url()?.to_string();
@@ -143,6 +144,7 @@ async fn count_download(
                 match request_download_count(
                     &labrinth_url,
                     &labrinth_secret,
+                    &rate_limit_key_secret,
                     &hash,
                     &version_name,
                     og_url,
@@ -185,6 +187,7 @@ struct DownloadRequest {
 async fn request_download_count(
     labrinth_url: &str,
     labrinth_secret: &str,
+    rate_limit_key: &str,
     hash: &str,
     version_name: &str,
     req_url: String,
@@ -199,6 +202,7 @@ async fn request_download_count(
         let mut h = Headers::new();
         h.set("Modrinth-Admin", labrinth_secret)?;
         h.set("Content-Type", "application/json")?;
+        h.set("x-ratelimit-key", rate_limit_key)?;
         CORS_POLICY.apply_headers(&mut h)?;
 
         h

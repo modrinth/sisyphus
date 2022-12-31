@@ -13,6 +13,9 @@ pub const LABRINTH_URL: &str = "LABRINTH_URL";
 /// The secret contianing the admin key for Labrinth
 pub const LABRINTH_SECRET: &str = "LABRINTH_ADMIN_SECRET";
 
+/// The secret containing the rate limit ignore key
+pub const RATE_LIMIT_IGNORE_KEY: &str = "RATE_LIMIT_IGNORE_KEY";
+
 /// How long downloader download counts should be stored, in minutes
 pub const DOWNLOAD_STORAGE_TIME: &str = "DOWNLOAD_STORAGE_TIME";
 

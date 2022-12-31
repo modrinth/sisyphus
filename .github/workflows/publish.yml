@@ -15,6 +15,9 @@ jobs:
           preCommands: wrangler build
           apiToken: ${{ secrets.CF_API_TOKEN }}
           environment: dev
-          secrets: LABRINTH_ADMIN_SECRET
+          secrets: |
+            LABRINTH_ADMIN_SECRET
+            RATE_LIMIT_IGNORE_KEY
         env:
           LABRINTH_ADMIN_SECRET: ${{ secrets.LABRINTH_ADMIN_SECRET_DEV }}
+          RATE_LIMIT_IGNORE_KEY: ${{ secrets.RATE_LIMIT_IGNORE_KEY_DEV }}
