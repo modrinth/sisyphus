@@ -1,6 +1,7 @@
 use crate::utils::*;
 use chrono::Duration;
 use serde::Serialize;
+use std::collections::HashMap;
 use std::{net::IpAddr, path::Path};
 use worker::wasm_bindgen::JsValue;
 use worker::*;
@@ -52,21 +53,18 @@ pub fn handle_download(
 }
 
 /// Tries to count a download, provided the IP address is discernable and the limit hasn't already been reachedy
-async fn count_download(
-    req: &Request,
-    ctx: &RouteContext<()>,
-) -> Result<()> {
-    if let Some(ip) = req.headers().get(CF_IP_HEADER)? {
+async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
+    if let Some(raw_ip) = req.headers().get(CF_IP_HEADER)? {
         let (project, file) = (get_param(ctx, "hash"), get_param(ctx, "file"));
 
         if !is_counted(file) {
             console_debug!("[DEBUG]: Not counting {file} due to extension");
             return Ok(());
         }
-        console_debug!("[DEBUG]: Attempting to count download from IP {ip} in project {project}");
+        console_debug!("[DEBUG]: Attempting to count download from IP {raw_ip} in project {project}");
 
         let ip = u64::from_le_bytes(
-            match ip.parse::<IpAddr>().map_err(|err| err.to_string())? {
+            match raw_ip.parse::<IpAddr>().map_err(|err| err.to_string())? {
                 IpAddr::V4(it) => {
                     [it.octets(), [0u8; 4]].concat().try_into().unwrap()
                 }
@@ -135,10 +133,16 @@ async fn count_download(
         if (downloader_downloads as i64) < max_downloads {
             let labrinth_url = ctx.var(LABRINTH_URL)?.to_string();
             let labrinth_secret = ctx.secret(LABRINTH_SECRET)?.to_string();
-            let rate_limit_key_secret = ctx.secret(RATE_LIMIT_IGNORE_KEY)?.to_string();
+            let rate_limit_key_secret =
+                ctx.secret(RATE_LIMIT_IGNORE_KEY)?.to_string();
             let hash = get_param(ctx, "hash").to_owned();
             let version_name = get_param(ctx, "version").to_owned();
             let og_url = req.url()?.to_string();
+            let ip = raw_ip.clone();
+            let headers = req
+                .headers()
+                .into_iter()
+                .collect::<HashMap<String, String>>();
 
             wasm_bindgen_futures::spawn_local(async move {
                 match request_download_count(
@@ -148,6 +152,8 @@ async fn count_download(
                     &hash,
                     &version_name,
                     og_url,
+                    ip,
+                    headers,
                 )
                 .await
                 {
@@ -180,8 +186,11 @@ async fn count_download(
 #[derive(Serialize)]
 struct DownloadRequest {
     pub url: String,
-    pub hash: String,
+    pub project_id: String,
     pub version_name: String,
+
+    pub ip: String,
+    pub headers: HashMap<String, String>,
 }
 
 async fn request_download_count(
@@ -191,6 +200,8 @@ async fn request_download_count(
     hash: &str,
     version_name: &str,
     req_url: String,
+    ip: String,
+    req_headers: HashMap<String, String>,
 ) -> Result<Response> {
     let url = format!(
         "{url}/v2/admin/_count-download",
@@ -214,8 +225,10 @@ async fn request_download_count(
         body: Some(JsValue::from_str(&serde_json::to_string(
             &DownloadRequest {
                 url: req_url.to_string(),
-                hash: hash.to_string(),
+                project_id: hash.to_string(),
                 version_name: version_name.to_string(),
+                ip,
+                headers: req_headers,
             },
         )?)),
         ..Default::default()
