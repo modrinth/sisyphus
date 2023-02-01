@@ -49,7 +49,6 @@ pub async fn main(
         .options("/*route", |_req, _ctx| {
             Response::ok("")?.with_cors(&CORS_POLICY)
         })
-        .get("/teapot", routes::teapot::teapot)
         .head_async("/*file", |_req, ctx| async move {
             let cdn = ctx.env.var(CDN_BACKEND_URL)?.to_string();
             let url = make_cdn_url(&cdn, get_param(&ctx, "file"))?.to_string();
