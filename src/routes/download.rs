@@ -9,7 +9,7 @@ use worker::*;
 /// KV store used to count downloaders
 /// Key: &str = IP address of user
 /// Value: [u8;4] = Download count in little endian (for portability, this is specified)
-pub const DOWNLOADERS_KV_STORE: &str = "MODRINTH_DOWNLOADERS";
+pub const DOWNLOADERS_KV_STORE: &str = "MODRINTH_DOWNLOADERS_KV";
 
 /// Route handler for download counting, redirecting, and caching
 /// URL: /data/<hash>/versions/<version>/<file>
@@ -144,39 +144,38 @@ async fn count_download(req: &Request, ctx: &RouteContext<()>) -> Result<()> {
                 .into_iter()
                 .collect::<HashMap<String, String>>();
 
-            wasm_bindgen_futures::spawn_local(async move {
-                match request_download_count(
-                    &labrinth_url,
-                    &labrinth_secret,
-                    &rate_limit_key_secret,
-                    &hash,
-                    &version_name,
-                    og_url,
-                    ip,
-                    headers,
-                )
+            match request_download_count(
+                &labrinth_url,
+                &labrinth_secret,
+                &rate_limit_key_secret,
+                &hash,
+                &version_name,
+                og_url,
+                ip,
+                headers,
+            )
                 .await
-                {
-                    Ok(mut response)
-                        if !http::StatusCode::from_u16(
-                            response.status_code(),
-                        )
-                        .unwrap()
-                        .is_success() =>
+            {
+                Ok(mut response)
+                if !http::StatusCode::from_u16(
+                    response.status_code(),
+                )
+                    .unwrap()
+                    .is_success() =>
                     {
                         console_warn!(
                             "[WARN] Non-success response when counting download: {}",
                             response.text().await.unwrap_or_else(|_| String::from("?"))
                         )
                     }
-                    Err(error) => {
-                        console_error!(
+                Err(error) => {
+                    console_error!(
                             "[ERROR] Error counting download: {error}"
                         )
-                    }
-                    _ => (),
                 }
-            });
+                _ => (),
+            }
+            console_debug!("[DEBUG]: Finished counting download via labrinth");
         }
     };
 
