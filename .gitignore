@@ -4,6 +4,7 @@ build/
 .mf/
 # since this is only really used for installing miniflare, it would clutter up the repo more than it would help
 node_modules/
+.wrangler
 
 ### Intellij ###
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
