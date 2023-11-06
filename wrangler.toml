@@ -9,7 +9,7 @@ LABRINTH_URL = "http://127.0.0.1:8000/v2/"
 [env.staging.vars]
 LABRINTH_URL = "https://staging-api.modrinth.com/v2/"
 
-[env.production.vars]
+[env.prod.vars]
 LABRINTH_URL = "https://api.modrinth.com/v2/"
 
 [[r2_buckets]]
@@ -21,6 +21,6 @@ preview_bucket_name = "modrinth-cdn-staging"
 binding = "MODRINTH_CDN"
 bucket_name = "modrinth-cdn-staging"
 
-[[env.production.r2_buckets]]
+[[env.prod.r2_buckets]]
 binding = "MODRINTH_CDN"
 bucket_name = "modrinth-cdn"
