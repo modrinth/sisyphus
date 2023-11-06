@@ -125,9 +125,19 @@ export default {
 				},
 			});
 
-			if (request.method === 'GET') ctx.waitUntil(cache.put(request, response.clone()));
+      const returnVal = response.clone()
 
-			return response;
+			if (request.method === 'GET') {
+        async function putInCache(req: Request, res: Response) {
+          console.log('Caching artifact')
+          await cache.put(req, res)
+          console.log('Finished caching artifact')
+        }
+
+        ctx.waitUntil(putInCache(request, response));
+      }
+
+			return returnVal;
 		} else {
 			return cacheResponse;
 		}
