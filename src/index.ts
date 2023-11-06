@@ -86,7 +86,7 @@ export default {
 		const cacheResponse = await cache.match(request);
 
 		const url = new URL(request.url);
-		const key = url.pathname.slice(1);
+		const key = decodeURI(url.pathname.slice(1));
 
 		const urlData = extractUrlData(key);
 
