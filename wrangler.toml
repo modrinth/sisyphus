@@ -10,9 +10,13 @@ RATE_LIMIT_IGNORE_KEY = "feedbeef"
 
 [env.staging.vars]
 LABRINTH_URL = "https://staging-api.modrinth.com/v2/"
+LABRINTH_ADMIN_SECRET = "feedbeef"
+RATE_LIMIT_IGNORE_KEY = "feedbeef"
 
 [env.prod.vars]
 LABRINTH_URL = "https://api.modrinth.com/v2/"
+LABRINTH_ADMIN_SECRET = "feedbeef"
+RATE_LIMIT_IGNORE_KEY = "feedbeef"
 
 [[r2_buckets]]
 binding = "MODRINTH_CDN"
