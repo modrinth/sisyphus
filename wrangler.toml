@@ -1,51 +1,25 @@
-name = "modrinth-workers"
-type = "javascript"
-workers_dev = true
-compatibility_date = "2022-02-14"
+name = "sisyphus"
+main = "src/index.ts"
+compatibility_date = "2023-10-30"
 
 [vars]
-WORKERS_RS_VERSION = "0.0.17"
-LABRINTH_URL = "https://api.modrinth.com"
-CDN_BACKEND_URL = "https://cdn-raw.modrinth.com"
-MODRINTH_DOWNLOADERS_KV = "MODRINTH_DOWNLOADERS"
-LABRINTH_ADMIN_SECRET = "feedbeef"
-RATE_LIMIT_IGNORE_KEY = "feedbeef"
+LABRINTH_URL = "http://127.0.0.1:8000/v2/"
 
-[build]
-command = "cargo install -q worker-build && worker-build --release"
+[env.staging.vars]
+LABRINTH_URL = "https://staging-api.modrinth.com/v2/"
 
-[build.upload]
-dir = "build/worker"
-format = "modules"
-main = "./shim.mjs"
+[env.production.vars]
+LABRINTH_URL = "https://api.modrinth.com/v2/"
 
-[[build.upload.rules]]
-globs = ["**/*.wasm"]
-type = "CompiledWasm"
+[[r2_buckets]]
+binding = "MODRINTH_CDN"
+bucket_name = "modrinth-cdn-staging"
+preview_bucket_name = "modrinth-cdn-staging"
 
-[[kv_namespaces]]
-binding = "MODRINTH_DOWNLOADERS"
-id = "b836f7164d5d458c808a82f845d6d0bb"
-preview_id = "407d8655c50343ee96a569a2a520f25c"
+[[env.staging.r2_buckets]]
+binding = "MODRINTH_CDN"
+bucket_name = "modrinth-cdn-staging"
 
-[env.dev]
-name = "modrinth-workers-staging"
-
-vars = { LABRINTH_URL = "https://staging-api.modrinth.com", CDN_BACKEND_URL = "https://staging-cdn-raw.modrinth.com", MODRINTH_DOWNLOADERS_KV = "MODRINTH_DEV_DOWNLOADERS", DOWNLOAD_STORAGE_TIME = 360, DOWNLOAD_STORAGE_LIMIT = 5 }
-kv_namespaces = [
-    { binding = "MODRINTH_DEV_DOWNLOADERS", id = "407d8655c50343ee96a569a2a520f25c" }
-]
-
-[env.prod]
-name = "modrinth-workers-prod"
-
-vars = { LABRINTH_URL = "https://api.modrinth.com", CDN_BACKEND_URL = "https://cdn-raw.modrinth.com", MODRINTH_DOWNLOADERS_KV = "MODRINTH_PROD_DOWNLOADERS" }
-kv_namespaces = [
-    { binding = "MODRINTH_PROD_DOWNLOADERS", id = "b836f7164d5d458c808a82f845d6d0bb" }
-]
-
-[miniflare]
-watch = true
-live_reload = true
-kv_persist = false
-env_path = ".miniflare.env"
+[[env.production.r2_buckets]]
+binding = "MODRINTH_CDN"
+bucket_name = "modrinth-cdn"

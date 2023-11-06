@@ -1,0 +1,25 @@
+{
+	"compilerOptions": {
+		"target": "es2021" /* Set the JavaScript language version for emitted JavaScript and include compatible library declarations. */,
+		"lib": ["es2021"] /* Specify a set of bundled library declaration files that describe the target runtime environment. */,
+		"jsx": "react" /* Specify what JSX code is generated. */,
+
+		"module": "es2022",
+		"moduleResolution": "node",
+		"types": ["@cloudflare/workers-types"],
+		"resolveJsonModule": true,
+
+		"allowJs": true,
+		"checkJs": false,
+
+		"noEmit": true,
+
+		"isolatedModules": true,
+		"allowSyntheticDefaultImports": true,
+		"forceConsistentCasingInFileNames": true,
+
+		"strict": true,
+
+		"skipLibCheck": true
+	}
+}
