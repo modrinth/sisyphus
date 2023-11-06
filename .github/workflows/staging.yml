@@ -1,13 +1,17 @@
 on:
   push:
     branches:
-      - master
+      - fix-gh-act
 jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
     steps:
       - uses: actions/checkout@v3
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.6.2
       - name: Deploy app
         uses: cloudflare/wrangler-action@v3
         with:
