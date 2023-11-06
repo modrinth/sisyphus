@@ -1,0 +1,21 @@
+on:
+  push:
+    branches:
+      - prod
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy app
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          command: deploy --env prod
+          secrets: |
+            LABRINTH_ADMIN_KEY
+            RATE_LIMIT_IGNORE_KEY
+        env:
+          LABRINTH_ADMIN_KEY: ${{ secrets.LABRINTH_ADMIN_SECRET_PROD }}
+          RATE_LIMIT_IGNORE_KEY: ${{ secrets.RATE_LIMIT_IGNORE_KEY_PROD }}
