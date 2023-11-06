@@ -24,20 +24,16 @@ interface UrlData {
 function extractUrlData(path: string): UrlData | null {
 	// Pattern: data/:hash/versions/:version/:file
 	const parts = path.split('/');
-	console.log(parts);
 
-	const hashIndex = parts.findIndex((part) => part === 'data') + 1;
-	const versionIndex = parts.findIndex((part) => part === 'versions') + 1;
-
-	console.log(hashIndex);
-	console.log(versionIndex);
+	const hashIndex = parts.findIndex((part) => part === 'data');
+	const versionIndex = parts.findIndex((part) => part === 'versions');
 
 	if (hashIndex === -1 || versionIndex === -1) {
 		return null;
 	}
 
-	const projectId = parts[hashIndex];
-	const versionId = parts[versionIndex];
+	const projectId = parts[hashIndex + 1];
+	const versionId = parts[versionIndex + 1];
 
 	return { projectId, versionId };
 }
@@ -94,7 +90,6 @@ export default {
 
 		const urlData = extractUrlData(key);
 
-		console.log(urlData);
 		if (urlData && request.method === 'GET') {
 			ctx.waitUntil(countDownload(request, env, urlData));
 		}
