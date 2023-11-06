@@ -16,6 +16,7 @@ jobs:
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
+          environment: prod
           command: deploy --env prod
           secrets: |
             LABRINTH_ADMIN_KEY
