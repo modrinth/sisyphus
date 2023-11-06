@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      - fix-gh-act
+      - master
 jobs:
   deploy:
     runs-on: ubuntu-latest
