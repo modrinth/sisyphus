@@ -15,6 +15,7 @@ function makeError(code: number, error: String, description: String): Response {
 		},
 	});
 }
+const CUSTOM_DATA = 'custom_files';
 
 interface UrlData {
 	projectId: string;
@@ -68,8 +69,27 @@ async function countDownload(request: Request, env: Env, urlData: UrlData) {
 		}),
 	);
 
-	console.log(`Finished counting download. Status code: ${res.status}`);
+	console.log(`Finished checking download. Status code: ${res.status}`);
 	console.log(`Response body: ${await res.text()}`);
+}
+
+async function checkUrl(request: Request, env: Env) {
+	console.log(`Attempting to check url `);
+	const url = `${env.LABRINTH_URL}minecraft/check_token?url=${encodeURIComponent(request.url)}`;
+	console.log(`url: ${url}`);
+	let res = await fetch(
+		new Request(url, {
+			method: 'GET',
+			headers: {
+				// Pass 'authorization' header through
+				authorization: request.headers.get('authorization') ?? '',
+			},
+		}),
+	);
+
+	console.log(`Finished checking URL-token validity. Status code: ${res.status}`);
+	console.log(`Response body: ${await res.text()}`);
+	return res;
 }
 
 export default {
@@ -107,6 +127,15 @@ export default {
 			if (object === null) {
 				return makeError(404, 'not_found', 'the requested resource does not exist');
 			}
+
+			if (key.startsWith(CUSTOM_DATA)) {
+				let res = await checkUrl(request, env);
+				if (res.status !== 200) {
+					return makeError(404, 'not_found', 'the requested resource does not exist');
+				}
+			}
+
+			console.log(`Getting response for object with key ${key}`);
 
 			const response = new Response(request.method === 'HEAD' ? null : (object as R2ObjectBody).body, {
 				status: 200,
