@@ -50,6 +50,14 @@ async function countDownload(request: Request, env: Env, urlData: UrlData) {
 		headersObj[key] = value;
 	});
 
+	let queryObj: Record<string, string> = {};
+	const reqUrl = new URL(request.url);
+	reqUrl.searchParams.forEach((value, key) => {
+		if (key.startsWith('mr_')) {
+			queryObj[key] = value;
+		}
+	});
+
 	const res = await fetch(
 		new Request(url, {
 			method: 'PATCH',
@@ -64,6 +72,7 @@ async function countDownload(request: Request, env: Env, urlData: UrlData) {
 				version_name: urlData.versionId,
 				ip: request.headers.get('CF-Connecting-IP') ?? '127.0.0.1',
 				headers: headersObj,
+				query: queryObj,
 			}),
 		}),
 	);
