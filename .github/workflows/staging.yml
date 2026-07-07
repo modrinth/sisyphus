@@ -7,13 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     name: Deploy
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: Set up pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8.6.2
+        run: corepack enable
       - name: Deploy app
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           environment: staging
