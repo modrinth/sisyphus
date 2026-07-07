@@ -97,11 +97,17 @@ export default {
 		}
 
 		if (request.method === 'OPTIONS') {
-			return new Response(null, { headers: { allow: allowedMethods.join(', ') } });
+			return new Response(null, {
+				headers: {
+					allow: allowedMethods.join(', '),
+					'cache-control': 'public, maxage=2678400',
+				},
+			});
 		}
 
 		const url = new URL(request.url);
 		const key = decodeURIComponent(url.pathname.replace(/\/+/g, '/').slice(1));
+		const isHead = request.method === 'HEAD';
 
 		const urlData = extractUrlData(key);
 
@@ -113,7 +119,6 @@ export default {
 			return makeError(404, 'not_found', 'the requested resource does not exist');
 		}
 
-		const isHead = request.method === 'HEAD';
 		const object: R2Object | R2ObjectBody | null = isHead ? await env.MODRINTH_CDN.head(key) : await env.MODRINTH_CDN.get(key);
 
 		if (object === null) {
