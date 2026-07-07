@@ -91,9 +91,6 @@ export default {
 			return new Response(null, { headers: { allow: allowedMethods.join(', ') } });
 		}
 
-		const cache = caches.default;
-		const cacheResponse = await cache.match(request);
-
 		const url = new URL(request.url);
 		const key = decodeURIComponent(url.pathname.replace(/\/+/g, '/').slice(1));
 
@@ -103,52 +100,31 @@ export default {
 			ctx.waitUntil(countDownload(request, env, urlData));
 		}
 
-		if (!cacheResponse || !(cacheResponse.ok || cacheResponse.status == 304)) {
-			console.warn('Cache miss. Fetching origin.');
-
-			if (key.endsWith('/')) {
-				return makeError(404, 'not_found', 'the requested resource does not exist');
-			}
-
-			const object: R2Object | R2ObjectBody | null =
-				request.method === 'HEAD' ? await env.MODRINTH_CDN.head(key) : await env.MODRINTH_CDN.get(key);
-
-			if (object === null) {
-				return makeError(404, 'not_found', 'the requested resource does not exist');
-			}
-
-			const response = new Response(request.method === 'HEAD' ? null : (object as R2ObjectBody).body, {
-				status: 200,
-				headers: {
-					...defaultCorsHeaders,
-					etag: object.httpEtag,
-					// if the 404 file has a custom cache control, we respect it
-					'cache-control': 's-maxage=2678400',
-					'last-modified': object.uploaded.toUTCString(),
-
-					'content-encoding': object.httpMetadata?.contentEncoding ?? '',
-					'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
-					'content-language': object.httpMetadata?.contentLanguage ?? '',
-					'content-disposition': object.httpMetadata?.contentDisposition ?? '',
-					'content-length': object.size.toString(),
-				},
-			});
-
-      const returnVal = response.clone()
-
-			if (request.method === 'GET') {
-        async function putInCache(req: Request, res: Response) {
-          console.log('Caching artifact')
-          await cache.put(req, res)
-          console.log('Finished caching artifact')
-        }
-
-        ctx.waitUntil(putInCache(request, response));
-      }
-
-			return returnVal;
-		} else {
-			return cacheResponse;
+		if (key.endsWith('/')) {
+			return makeError(404, 'not_found', 'the requested resource does not exist');
 		}
+
+		const isHead = request.method === 'HEAD';
+		const object: R2Object | R2ObjectBody | null = isHead ? await env.MODRINTH_CDN.head(key) : await env.MODRINTH_CDN.get(key);
+
+		if (object === null) {
+			return makeError(404, 'not_found', 'the requested resource does not exist');
+		}
+
+		return new Response(isHead ? null : (object as R2ObjectBody).body, {
+			status: 200,
+			headers: {
+				...defaultCorsHeaders,
+				etag: object.httpEtag,
+				'cache-control': 's-maxage=2678400',
+				'last-modified': object.uploaded.toUTCString(),
+
+				'content-encoding': object.httpMetadata?.contentEncoding ?? '',
+				'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+				'content-language': object.httpMetadata?.contentLanguage ?? '',
+				'content-disposition': object.httpMetadata?.contentDisposition ?? '',
+				'content-length': object.size.toString(),
+			},
+		});
 	},
 };
