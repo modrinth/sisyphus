@@ -100,7 +100,7 @@ export default {
 			return new Response(null, {
 				headers: {
 					allow: allowedMethods.join(', '),
-					'cache-control': 'public, maxage=2678400',
+					'cache-control': 'public, max-age=86400, stale-while-revalidate=86400',
 				},
 			});
 		}
@@ -130,7 +130,7 @@ export default {
 			headers: {
 				...defaultCorsHeaders,
 				etag: object.httpEtag,
-				'cache-control': isNoStoreArtifact(key) ? 'no-store' : 'public, maxage=2678400',
+				'cache-control': isNoStoreArtifact(key) ? 'no-store' : 'public, max-age=86400, stale-while-revalidate=86400',
 				'last-modified': object.uploaded.toUTCString(),
 
 				'content-encoding': object.httpMetadata?.contentEncoding ?? '',
