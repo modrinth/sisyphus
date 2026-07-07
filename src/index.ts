@@ -16,6 +16,15 @@ function makeError(code: number, error: String, description: String): Response {
 	});
 }
 
+// Downloadable artifacts must not be cached so every download reaches the worker and gets counted.
+// https://github.com/modrinth/code/blob/517c3d2d72ef4f667cbc454d6ae22f60fa21911d/packages/utils/utils.ts#L243
+const noStoreExtensions = ['.jar', '.zip', '.litemod', '.mrpack', '.sig', '.asc', '.gpg'];
+
+function isNoStoreArtifact(key: string): boolean {
+	const lowerKey = key.toLowerCase();
+	return noStoreExtensions.some((extension) => lowerKey.endsWith(extension));
+}
+
 interface UrlData {
 	projectId: string;
 	versionId: string;
@@ -116,7 +125,7 @@ export default {
 			headers: {
 				...defaultCorsHeaders,
 				etag: object.httpEtag,
-				'cache-control': 's-maxage=2678400',
+				'cache-control': isNoStoreArtifact(key) ? 'no-store' : 'public, maxage=2678400',
 				'last-modified': object.uploaded.toUTCString(),
 
 				'content-encoding': object.httpMetadata?.contentEncoding ?? '',
