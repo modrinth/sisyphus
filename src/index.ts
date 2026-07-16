@@ -25,6 +25,39 @@ function isNoStoreArtifact(key: string): boolean {
 	return noStoreExtensions.some((extension) => lowerKey.endsWith(extension));
 }
 
+interface ResolvedRange {
+	start: number;
+	end: number;
+}
+
+function resolveRange(range: R2Range, size: number): ResolvedRange {
+	const { offset, length, suffix } = range as { offset?: number; length?: number; suffix?: number };
+
+	if (suffix !== undefined) {
+		return { start: Math.max(0, size - suffix), end: size - 1 };
+	}
+
+	const start = offset ?? 0;
+
+	if (length === undefined) {
+		return { start, end: size - 1 };
+	}
+
+	return { start, end: Math.min(start + length - 1, size - 1) };
+}
+
+// Chunked downloaders and media players issue many range requests for a single logical download.
+// Only the request that starts at byte 0 is counted, so resumes and later chunks don't inflate counts.
+function startsDownload(request: Request): boolean {
+	const range = request.headers.get('range');
+
+	if (range === null) {
+		return true;
+	}
+
+	return /^\s*bytes\s*=\s*0-/i.test(range);
+}
+
 interface UrlData {
 	projectId: string;
 	versionId: string;
@@ -115,7 +148,7 @@ export default {
 
 		const urlData = extractUrlData(key);
 
-		if (urlData && request.method === 'GET') {
+		if (urlData && request.method === 'GET' && startsDownload(request)) {
 			ctx.waitUntil(countDownload(request, env, urlData));
 		}
 
@@ -123,26 +156,39 @@ export default {
 			return makeError(404, 'not_found', 'the requested resource does not exist');
 		}
 
-		const object: R2Object | R2ObjectBody | null = isHead ? await env.MODRINTH_CDN.head(key) : await env.MODRINTH_CDN.get(key);
+		const object: R2Object | R2ObjectBody | null = isHead
+			? await env.MODRINTH_CDN.head(key)
+			: await env.MODRINTH_CDN.get(key, { range: request.headers });
 
 		if (object === null) {
 			return makeError(404, 'not_found', 'the requested resource does not exist');
 		}
 
-		return new Response(isHead ? null : (object as R2ObjectBody).body, {
-			status: 200,
-			headers: {
-				...defaultCorsHeaders,
-				etag: object.httpEtag,
-				'cache-control': isNoStoreArtifact(key) ? 'no-store' : 'public, max-age=86400, stale-while-revalidate=86400',
-				'last-modified': object.uploaded.toUTCString(),
+		// R2 reports object.range even when the client sent no Range header, so the request decides.
+		const wantsRange = !isHead && request.headers.get('range') !== null;
+		const range = wantsRange && object.range !== undefined ? resolveRange(object.range, object.size) : null;
 
-				'content-encoding': object.httpMetadata?.contentEncoding ?? '',
-				'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
-				'content-language': object.httpMetadata?.contentLanguage ?? '',
-				'content-disposition': object.httpMetadata?.contentDisposition ?? '',
-				'content-length': object.size.toString(),
-			},
+		const headers: Record<string, string> = {
+			...defaultCorsHeaders,
+			etag: object.httpEtag,
+			'accept-ranges': 'bytes',
+			'cache-control': isNoStoreArtifact(key) ? 'no-store' : 'public, max-age=86400, stale-while-revalidate=86400',
+			'last-modified': object.uploaded.toUTCString(),
+
+			'content-encoding': object.httpMetadata?.contentEncoding ?? '',
+			'content-type': object.httpMetadata?.contentType ?? 'application/octet-stream',
+			'content-language': object.httpMetadata?.contentLanguage ?? '',
+			'content-disposition': object.httpMetadata?.contentDisposition ?? '',
+			'content-length': (range === null ? object.size : range.end - range.start + 1).toString(),
+		};
+
+		if (range !== null) {
+			headers['content-range'] = `bytes ${range.start}-${range.end}/${object.size}`;
+		}
+
+		return new Response(isHead ? null : (object as R2ObjectBody).body, {
+			status: range === null ? 200 : 206,
+			headers,
 		});
 	},
 };
