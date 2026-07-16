@@ -59,6 +59,10 @@ async function countDownload(request: Request, env: Env, urlData: UrlData) {
 		headersObj[key] = value;
 	});
 
+	if (request.cf?.country != null) {
+		headersObj['alt-ipcountry'] = request.cf.country as string;
+	}
+
 	let queryObj: Record<string, string> = {};
 	const reqUrl = new URL(request.url);
 	reqUrl.searchParams.forEach((value, key) => {
